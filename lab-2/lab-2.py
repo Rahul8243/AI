@@ -15,7 +15,8 @@ from tensorflow.keras.callbacks import EarlyStopping
 
 from scikeras.wrappers import KerasClassifier
 
-df_wine = pd.read_csv("winequality-white.csv", sep=';')
+url = "https://archive.ics.uci.edu/ml/machine-learning-databases/wine-quality/winequality-white.csv"
+df_wine = pd.read_csv(url, sep=';')
 
 X = df_wine.drop("quality", axis=1)
 y = df_wine["quality"]
