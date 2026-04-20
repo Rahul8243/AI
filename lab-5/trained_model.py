@@ -1,0 +1,153 @@
+import tensorflow as tf
+import tensorflow_datasets as tfds
+import matplotlib.pyplot as plt
+from tensorflow.keras import layers, models
+
+# PARAMETERS
+
+IMG_SIZE = 128
+BATCH_SIZE = 8
+EPOCHS = 5
+
+
+# LOAD DATASET
+
+dataset, info = tfds.load('oxford_iiit_pet', with_info=True)
+
+train_data = dataset['train']
+test_data = dataset['test']
+
+
+# PREPROCESS FUNCTION
+
+def preprocess(data):
+
+    image = tf.image.resize(data['image'], (IMG_SIZE, IMG_SIZE))
+
+    mask = tf.image.resize(
+        data['segmentation_mask'],
+        (IMG_SIZE, IMG_SIZE),
+        method='nearest'
+    )
+
+    image = tf.cast(image, tf.float32) / 255.0
+
+    mask = mask - 1
+
+    return image, mask
+
+
+# DATASET PIPELINE
+
+train_dataset = train_data.map(preprocess).shuffle(100).batch(BATCH_SIZE)
+test_dataset = test_data.map(preprocess).batch(BATCH_SIZE)
+
+
+# U-NET BLOCK
+
+def unet_block(x, filters):
+
+    c = layers.Conv2D(filters, (3,3), activation='relu', padding='same')(x)
+    c = layers.Conv2D(filters, (3,3), activation='relu', padding='same')(c)
+
+    return c
+
+
+# BUILD U-NET MODEL
+
+def build_unet(input_shape=(128,128,3), num_classes=3):
+
+    inputs = layers.Input(shape=input_shape)
+
+    # Encoder
+    c1 = unet_block(inputs, 64)
+    p1 = layers.MaxPooling2D((2,2))(c1)
+
+    c2 = unet_block(p1, 128)
+    p2 = layers.MaxPooling2D((2,2))(c2)
+
+    # Bottleneck
+    bn = unet_block(p2, 256)
+
+    # Decoder
+    u1 = layers.UpSampling2D((2,2))(bn)
+    u1 = layers.Concatenate()([u1, c2])
+    c3 = unet_block(u1, 128)
+
+    u2 = layers.UpSampling2D((2,2))(c3)
+    u2 = layers.Concatenate()([u2, c1])
+    c4 = unet_block(u2, 64)
+
+    outputs = layers.Conv2D(num_classes, (1,1), activation='softmax')(c4)
+
+    model = models.Model(inputs, outputs)
+
+    return model
+
+
+# CREATE MODEL
+
+model = build_unet()
+
+model.summary()
+
+
+# COMPILE MODEL
+
+model.compile(
+    optimizer='adam',
+    loss='sparse_categorical_crossentropy',
+    metrics=['accuracy']
+)
+
+
+# TRAIN MODEL
+
+history = model.fit(
+    train_dataset,
+    epochs=EPOCHS,
+    validation_data=test_dataset
+)
+
+
+# EVALUATE MODEL
+
+loss, accuracy = model.evaluate(test_dataset)
+
+print("Test Accuracy:", accuracy)
+
+
+# VISUALIZE PREDICTION
+
+for image, mask in test_dataset.take(1):
+
+    pred = model.predict(image)
+
+    pred_mask = tf.argmax(pred, axis=-1)
+
+    plt.figure(figsize=(12,4))
+
+    plt.subplot(1,3,1)
+    plt.title("Input Image")
+    plt.imshow(image[0])
+
+    plt.subplot(1,3,2)
+    plt.title("True Mask")
+    plt.imshow(mask[0][:,:,0])
+
+    plt.subplot(1,3,3)
+    plt.title("Predicted Mask")
+    plt.imshow(pred_mask[0])
+
+    plt.show()
+
+
+# TRAINING GRAPH
+
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+
+plt.title("Training Loss")
+plt.legend(["Train","Validation"])
+
+plt.show()
