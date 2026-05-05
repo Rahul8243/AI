@@ -1,6 +1,6 @@
 # 🖼️ CIFAR-10 Image Classification using ANN (Performance Analysis)
 
-## 📌 Overview
+##  Overview
 
 This project implements an **Artificial Neural Network (ANN)** for image classification on the **CIFAR-10 dataset** and analyzes its performance in terms of accuracy and training time.
 
