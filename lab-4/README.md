@@ -13,7 +13,7 @@ It focuses on:
 
 ---
 
-## 🚀 Key Highlights
+##  Key Highlights
 
 * 🧠 ANN model for image classification
 * ⏱️ Training time measurement
